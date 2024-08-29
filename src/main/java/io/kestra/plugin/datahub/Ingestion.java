@@ -64,10 +64,6 @@ import java.util.Map;
                   - id: execute_ingestion
                     type: io.kestra.plugin.datahub.Ingestion
                     recipe: "{{ input('recipe_file') }}"
-                      sink:
-                        type: datahub-rest
-                        config:
-                          server: http://datahub-gms:8080
                   """
         )
     }
