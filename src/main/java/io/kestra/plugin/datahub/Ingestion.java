@@ -2,24 +2,27 @@ package io.kestra.plugin.datahub;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.async.ResultCallback;
-import com.github.dockerjava.api.command.*;
-import com.github.dockerjava.api.model.*;
-import com.github.dockerjava.core.DefaultDockerClientConfig;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.Task;
+import io.kestra.core.models.tasks.*;
+import io.kestra.core.models.tasks.runners.DefaultLogConsumer;
+import io.kestra.core.models.tasks.runners.ScriptService;
+import io.kestra.core.models.tasks.runners.TaskCommands;
+import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.scripts.runner.docker.DockerService;
+import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
+import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
+import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
+import io.kestra.plugin.scripts.runner.docker.Docker;
+import io.kestra.plugin.scripts.runner.docker.PullPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.slf4j.Logger;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
@@ -27,7 +30,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @SuperBuilder
 @ToString
@@ -41,8 +45,13 @@ import java.util.Map;
     examples = {
         @Example(
             title = "Run Datahub ingestion",
+            full = true,
             code = """
-                  - id: execute_ingestion
+                id: datahub_cli
+                namespace: company.name
+
+                tasks:
+                  - id: clis
                     type: io.kestra.plugin.datahub.Ingestion
                     recipe:
                       source:
@@ -60,50 +69,52 @@ import java.util.Map;
         ),
         @Example(
             title = "Run Datahub ingestion using local recipe file",
+            full = true,
             code = """
-                  - id: execute_ingestion
+                id: datahub_cli
+                namespace: company.name
+
+                tasks:
+                  - id: clis
                     type: io.kestra.plugin.datahub.Ingestion
                     recipe: "{{ input('recipe_file') }}"
                   """
         )
     }
 )
-public class Ingestion extends Task implements RunnableTask<Ingestion.Output> {
-
-    public enum PullPolicy {
-        ALWAYS,
-        NEVER,
-        IF_NOT_PRESENT
-    }
+public class Ingestion extends Task implements RunnableTask<ScriptOutput>, NamespaceFilesInterface, InputFilesInterface, OutputFilesInterface {
 
     private final ObjectMapper mapper = JacksonMapper.ofYaml();
+
+    private static final String DEFAULT_IMAGE = "acryldata/datahub-ingestion:head";
 
     @Schema(
         title = "The Ingestion Datahub docker image."
     )
     @Builder.Default
     @PluginProperty(dynamic = true)
-    private String image = "acryldata/datahub-ingestion:head";
+    private String containerImage = DEFAULT_IMAGE;
 
     @Schema(
-        title = "The Ingestion Datahub docker network. Default value is \"datahub_network\"."
+        title = "Deprecated, use 'taskRunner' instead"
     )
-    @Builder.Default
-    @PluginProperty(dynamic = true)
-    private String network = "datahub_network";
-
-    @Schema(
-        title = "The URI of your Docker host e.g. localhost."
-    )
-    @PluginProperty(dynamic = true)
-    private String host;
-
-    @Schema(
-        title = "The pull policy for the Docker image. Default value is IN_NOT_PRESENT."
-    )
-    @Builder.Default
     @PluginProperty
-    private PullPolicy pullPolicy = PullPolicy.IF_NOT_PRESENT;
+    @Deprecated
+    private DockerOptions docker;
+
+    @Schema(
+        title = "The environments for Ingestion DataHub."
+    )
+    @PluginProperty(dynamic = true)
+    private Map<String, String> env;
+
+	@Schema(
+        title = "The task runner to use."
+	)
+	@Valid
+	@PluginProperty
+	@Builder.Default
+	private TaskRunner taskRunner = Docker.instance();
 
     @Schema(
         title = "The Ingestion DataHub Recipe."
@@ -112,86 +123,56 @@ public class Ingestion extends Task implements RunnableTask<Ingestion.Output> {
     @PluginProperty
     private Object recipe;
 
-    @Schema(
-        title = "The environments for Ingestion DataHub."
-    )
-    @PluginProperty(dynamic = true)
-    private Map<String, String> env;
+	private NamespaceFiles namespaceFiles;
+
+	private Object inputFiles;
+
+	private List<String> outputFiles;
 
     @Override
-    public Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
+    public ScriptOutput run(RunContext runContext) throws Exception {
+        String recipeFilePath = getRecipe(runContext);
 
-        String dockerImage = runContext.render(this.image);
-
-        DefaultDockerClientConfig dockerClientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder()
-            .withDockerHost(DockerService.findHost(runContext, this.host))
-            .build();
-
-        try (
-            DockerClient dockerClient = DockerService.client(dockerClientConfig)
-        ) {
-            pullImage(dockerClient, dockerImage, logger);
-
-            String recipeFilePath = getRecipe(runContext);
-
-            HostConfig hostConfig = HostConfig.newHostConfig()
-                .withBinds(new Bind(recipeFilePath, new Volume("/recipe.yml"), AccessMode.ro))
-                .withNetworkMode(network);
-
-            CreateContainerCmd createContainerCmd = dockerClient.createContainerCmd(dockerImage)
-                .withCmd("ingest -c /recipe.yml")
-                .withHostConfig(hostConfig);
-
-            if (this.env != null) {
-                createContainerCmd
-                    .withEnv(
-                        runContext.renderMap(this.env)
-                            .entrySet()
-                            .stream()
-                            .map(e -> e.getKey() + "=" + e.getValue()).toArray(String[]::new)
-                    );
-            }
-
-            CreateContainerResponse container = createContainerCmd.exec();
-
-            logger.info("Starting container");
-
-            dockerClient.startContainerCmd(container.getId()).exec();
-
-            WaitContainerResultCallback waitResponse = dockerClient.waitContainerCmd(container.getId())
-                .exec(new WaitContainerResultCallback())
-                .awaitCompletion();
-
-            int exitCode = waitResponse.awaitStatusCode();
-
-            dockerClient.logContainerCmd(container.getId())
-                .withStdOut(true)
-                .withStdErr(true)
-                .exec(new ResultCallback.Adapter<>() {
-                    @Override
-                    public void onNext(Frame object) {
-                        if (object.getStreamType().equals(StreamType.STDERR)) {
-                            logger.error(new String(object.getPayload()));
-                        } else {
-                            logger.info(new String(object.getPayload()));
-                        }
-
-                    }
-                })
-                .awaitCompletion();
-
-            if (exitCode != 0) {
-
-            return Output.builder()
-                .success(false)
-                .build();
-            }
-
-            return Output.builder()
-                .success(true)
-                .build();
+        if (inputFiles == null) {
+            inputFiles = new HashMap<String, String>();
         }
+
+        ((Map<String, String>) inputFiles).put("recipe.yml", recipeFilePath);
+
+        return new CommandsWrapper(runContext)
+            .withLogConsumer(new DatahubLogConsumer(runContext))
+            .withWarningOnStdErr(true)
+            .withTaskRunner(this.taskRunner)
+            .withContainerImage(this.containerImage)
+            .withDockerOptions(injectDefaults(getDocker()))
+            .withCommands(
+                ScriptService.scriptCommands(
+                    List.of("datahub", "ingest"),
+                    null,
+                    List.of("-crecipe.yml")
+                )
+            )
+            .withEnv(Optional.ofNullable(env).orElse(new HashMap<>()))
+            .withNamespaceFiles(namespaceFiles)
+            .withInputFiles(inputFiles)
+            .withOutputFiles(outputFiles)
+            .run();
+    }
+
+    private DockerOptions injectDefaults(DockerOptions original) {
+        if (original == null) {
+            return null;
+        }
+
+        var builder = original.toBuilder();
+        if (original.getImage() == null) {
+            builder.image(DEFAULT_IMAGE);
+        }
+        if (original.getEntryPoint() == null || original.getEntryPoint().isEmpty()) {
+            builder.entryPoint(List.of(""));
+        }
+
+        return builder.build();
     }
 
     private String getRecipe(RunContext runContext) throws Exception {
@@ -208,7 +189,9 @@ public class Ingestion extends Task implements RunnableTask<Ingestion.Output> {
             yaml = (Map<String, Object>) recipe;
         }
 
-        return store(tempFile, yaml);
+        String store = store(tempFile, yaml);
+
+        return runContext.storage().putFile(tempFile).toString();
     }
 
     private String store(File file, Map<String, Object> yaml) throws IOException {
@@ -222,34 +205,6 @@ public class Ingestion extends Task implements RunnableTask<Ingestion.Output> {
         }
 
         return file.getAbsolutePath();
-    }
-
-    private void pullImage(DockerClient dockerClient, String dockerImage, Logger logger) throws InterruptedException {
-        switch (pullPolicy) {
-            case ALWAYS -> {
-                logger.info("Pulling docker image");
-
-                dockerClient.pullImageCmd(image).exec(new PullImageResultCallback()).awaitCompletion();
-            }
-            case IF_NOT_PRESENT -> {
-                boolean imageExists = dockerClient.listImagesCmd()
-                    .exec()
-                    .stream()
-                    .anyMatch(image -> image.getRepoTags() != null && image.getRepoTags().length > 0 && image.getRepoTags()[0].equals(dockerImage));
-
-                if (!imageExists) {
-                    logger.info("Pulling docker image");
-
-                    dockerClient.pullImageCmd(dockerImage)
-                        .exec(new PullImageResultCallback())
-                        .awaitCompletion();
-                }
-            }
-            case NEVER -> {}
-            default ->
-                throw new IllegalArgumentException("Unsupported pull policy: " + pullPolicy);
-        }
-
     }
 
     @Getter

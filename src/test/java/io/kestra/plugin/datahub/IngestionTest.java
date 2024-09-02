@@ -7,6 +7,8 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
+import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -40,13 +42,18 @@ public class IngestionTest {
         Ingestion task = Ingestion.builder()
             .id("unit-test")
             .type(Ingestion.class.getName())
+            .docker(
+                DockerOptions.builder()
+                    .networkMode("datahub_network")
+                    .build()
+            )
             .recipe(getSource())
             .build();
 
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of());
 
-        Ingestion.Output run = task.run(runContext);
-        assertThat(run.isSuccess(), is(true));
+        ScriptOutput run = task.run(runContext);
+        assertThat(run.getExitCode(), is(0));
     }
 
     @Test
@@ -54,12 +61,17 @@ public class IngestionTest {
         Ingestion task = Ingestion.builder()
             .id("unit-test")
             .type(Ingestion.class.getName())
+            .docker(
+                DockerOptions.builder()
+                    .networkMode("datahub_network")
+                    .build()
+            )
             .recipe(
                 Map.of(
                     "source", Map.of(
                         "type", "mysql",
                         "config", Map.of(
-                            "host_port", "172.18.0.11:3306",
+                            "host_port", "ingestion-mysql:3306",
                             "database", "kestra",
                             "username", "root",
                             "password", "pass"
@@ -77,8 +89,8 @@ public class IngestionTest {
 
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of());
 
-        Ingestion.Output run = task.run(runContext);
-        assertThat(run.isSuccess(), is(true));
+        ScriptOutput run = task.run(runContext);
+        assertThat(run.getExitCode(), is(0));
     }
 
     private URI getSource() throws IOException, URISyntaxException {
