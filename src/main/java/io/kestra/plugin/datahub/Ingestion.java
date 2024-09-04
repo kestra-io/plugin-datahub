@@ -6,20 +6,15 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.*;
-import io.kestra.core.models.tasks.runners.DefaultLogConsumer;
 import io.kestra.core.models.tasks.runners.ScriptService;
-import io.kestra.core.models.tasks.runners.TaskCommands;
 import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
 import io.kestra.plugin.scripts.runner.docker.Docker;
-import io.kestra.plugin.scripts.runner.docker.PullPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -31,7 +26,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @SuperBuilder
 @ToString
@@ -51,7 +45,7 @@ import java.util.stream.Collectors;
                 namespace: company.name
 
                 tasks:
-                  - id: clis
+                  - id: cli
                     type: io.kestra.plugin.datahub.Ingestion
                     recipe:
                       source:
@@ -65,7 +59,7 @@ import java.util.stream.Collectors;
                         type: datahub-rest
                         config:
                           server: http://datahub-gms:8080
-                  """
+                """
         ),
         @Example(
             title = "Run Datahub ingestion using local recipe file",
@@ -75,16 +69,16 @@ import java.util.stream.Collectors;
                 namespace: company.name
 
                 tasks:
-                  - id: clis
+                  - id: cli
                     type: io.kestra.plugin.datahub.Ingestion
                     recipe: "{{ input('recipe_file') }}"
-                  """
+                """
         )
     }
 )
 public class Ingestion extends Task implements RunnableTask<ScriptOutput>, NamespaceFilesInterface, InputFilesInterface, OutputFilesInterface {
 
-    private final ObjectMapper mapper = JacksonMapper.ofYaml();
+    private static final ObjectMapper MAPPER = JacksonMapper.ofYaml();
 
     private static final String DEFAULT_IMAGE = "acryldata/datahub-ingestion:head";
 
@@ -94,13 +88,6 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     @Builder.Default
     @PluginProperty(dynamic = true)
     private String containerImage = DEFAULT_IMAGE;
-
-    @Schema(
-        title = "Deprecated, use 'taskRunner' instead"
-    )
-    @PluginProperty
-    @Deprecated
-    private DockerOptions docker;
 
     @Schema(
         title = "The environments for Ingestion DataHub."
@@ -144,10 +131,9 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             .withWarningOnStdErr(true)
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
-            .withDockerOptions(injectDefaults(getDocker()))
             .withCommands(
                 ScriptService.scriptCommands(
-                    List.of("datahub", "ingest"),
+                    List.of("ingest"),
                     null,
                     List.of("-crecipe.yml")
                 )
@@ -159,22 +145,6 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             .run();
     }
 
-    private DockerOptions injectDefaults(DockerOptions original) {
-        if (original == null) {
-            return null;
-        }
-
-        var builder = original.toBuilder();
-        if (original.getImage() == null) {
-            builder.image(DEFAULT_IMAGE);
-        }
-        if (original.getEntryPoint() == null || original.getEntryPoint().isEmpty()) {
-            builder.entryPoint(List.of(""));
-        }
-
-        return builder.build();
-    }
-
     private String getRecipe(RunContext runContext) throws Exception {
         File tempFile = runContext.workingDir().createTempFile(".yml").toFile();
 
@@ -184,7 +154,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
                 throw new IllegalArgumentException("Invalid recipe parameter, must be a Kestra internal storage URI or Map");
             }
 
-            yaml = mapper.readValue(runContext.storage().getFile(from), new TypeReference<>() {});
+            yaml = MAPPER.readValue(runContext.storage().getFile(from), new TypeReference<>() {});
         } else {
             yaml = (Map<String, Object>) recipe;
         }
@@ -205,14 +175,6 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
         }
 
         return file.getAbsolutePath();
-    }
-
-    @Getter
-    @SuperBuilder
-    public static class Output implements io.kestra.core.models.tasks.Output {
-
-        private boolean success;
-
     }
 
 }

@@ -9,6 +9,7 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
+import io.kestra.plugin.scripts.runner.docker.Docker;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -42,10 +43,12 @@ public class IngestionTest {
         Ingestion task = Ingestion.builder()
             .id("unit-test")
             .type(Ingestion.class.getName())
-            .docker(
-                DockerOptions.builder()
-                    .networkMode("datahub_network")
-                    .build()
+            .taskRunner(
+                Docker.from(
+                    DockerOptions.builder()
+                        .networkMode("datahub_network")
+                        .build()
+                )
             )
             .recipe(getSource())
             .build();
@@ -61,10 +64,12 @@ public class IngestionTest {
         Ingestion task = Ingestion.builder()
             .id("unit-test")
             .type(Ingestion.class.getName())
-            .docker(
-                DockerOptions.builder()
-                    .networkMode("datahub_network")
-                    .build()
+            .taskRunner(
+                Docker.from(
+                    DockerOptions.builder()
+                        .networkMode("datahub_network")
+                        .build()
+                )
             )
             .recipe(
                 Map.of(

@@ -1,7 +1,7 @@
 source:
   type: mysql
   config:
-    host_port: 172.18.0.11:3306
+    host_port: ingestion-mysql:3306
     database: kestra
     username: root
     password: pass
