@@ -1,0 +1,11 @@
+source:
+  type: mysql
+  config:
+    host_port: ingestion-mysql:3306
+    database: kestra
+    username: root
+    password: pass
+sink:
+  type: datahub-rest
+  config:
+    server: http://datahub-gms:8080
