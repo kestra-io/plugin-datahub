@@ -7,12 +7,12 @@ import io.kestra.core.runners.RunContext;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class DatahubLogConsumer extends AbstractLogConsumer {
+public class DataHubLogConsumer extends AbstractLogConsumer {
 
     private final RunContext runContext;
     private final AtomicInteger counter;
 
-    public DatahubLogConsumer(RunContext runContext) {
+    public DataHubLogConsumer(RunContext runContext) {
         this.runContext = runContext;
         this.counter = new AtomicInteger(0);
     }

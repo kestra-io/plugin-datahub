@@ -26,7 +26,7 @@ sourceCompatibility = 21
 targetCompatibility = 21
 
 group "io.kestra.plugin"
-description 'Plugin Datahub for Kestra'
+description 'Plugin DataHub for Kestra'
 
 tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
@@ -160,7 +160,7 @@ jar {
     manifest {
         attributes(
                 "X-Kestra-Name": project.name,
-                "X-Kestra-Title": "Datahubs",
+                "X-Kestra-Title": "DataHub",
                 "X-Kestra-Group": project.group + ".datahub",
                 "X-Kestra-Description": project.description,
                 "X-Kestra-Version": project.version

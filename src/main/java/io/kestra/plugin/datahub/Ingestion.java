@@ -33,12 +33,12 @@ import java.util.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Datahub ingestion"
+    title = "DataHub ingestion"
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Run Datahub ingestion",
+            title = "Run DataHub ingestion",
             full = true,
             code = """
                 id: datahub_cli
@@ -62,7 +62,7 @@ import java.util.*;
                 """
         ),
         @Example(
-            title = "Run Datahub ingestion using local recipe file",
+            title = "Run DataHub ingestion using local recipe file",
             full = true,
             code = """
                 id: datahub_cli
@@ -83,7 +83,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     private static final String DEFAULT_IMAGE = "acryldata/datahub-ingestion:head";
 
     @Schema(
-        title = "The Ingestion Datahub docker image."
+        title = "The Ingestion DataHub docker image."
     )
     @Builder.Default
     @PluginProperty(dynamic = true)
@@ -127,7 +127,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
         ((Map<String, String>) inputFiles).put("recipe.yml", recipeFilePath);
 
         return new CommandsWrapper(runContext)
-            .withLogConsumer(new DatahubLogConsumer(runContext))
+            .withLogConsumer(new DataHubLogConsumer(runContext))
             .withWarningOnStdErr(true)
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)

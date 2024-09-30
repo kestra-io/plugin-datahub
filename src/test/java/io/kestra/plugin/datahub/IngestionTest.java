@@ -28,7 +28,7 @@ import static org.hamcrest.Matchers.is;
 
 @KestraTest
 @Disabled(
-    "Disabled for CI/CD as requires Datahub GMS"
+    "Disabled for CI/CD as requires DataHub GMS"
 )
 public class IngestionTest {
 
