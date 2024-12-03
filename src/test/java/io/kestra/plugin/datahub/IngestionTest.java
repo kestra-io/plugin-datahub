@@ -103,6 +103,7 @@ public class IngestionTest {
 
         return storageInterface.put(
             null,
+            null,
             new URI("/" + IdUtils.create()),
             new FileInputStream(new File(Objects.requireNonNull(resource).toURI()))
         );
