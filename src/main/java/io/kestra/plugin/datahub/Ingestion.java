@@ -101,7 +101,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
 	@Valid
 	@PluginProperty
 	@Builder.Default
-	private TaskRunner taskRunner = Docker.instance();
+	private TaskRunner<?> taskRunner = Docker.instance();
 
     @Schema(
         title = "The Ingestion DataHub Recipe."
@@ -124,6 +124,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             inputFiles = new HashMap<String, String>();
         }
 
+        //noinspection unchecked
         ((Map<String, String>) inputFiles).put("recipe.yml", recipeFilePath);
 
         return new CommandsWrapper(runContext)
