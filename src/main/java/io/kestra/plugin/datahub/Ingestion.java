@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.*;
 import io.kestra.core.models.tasks.runners.ScriptService;
 import io.kestra.core.models.tasks.runners.TaskRunner;
@@ -114,7 +115,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
 
 	private Object inputFiles;
 
-	private List<String> outputFiles;
+	private Property<List<String>> outputFiles;
 
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {
@@ -126,6 +127,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
 
         //noinspection unchecked
         ((Map<String, String>) inputFiles).put("recipe.yml", recipeFilePath);
+        var renderedOutputFiles = runContext.render(this.outputFiles).asList(String.class);
 
         return new CommandsWrapper(runContext)
             .withLogConsumer(new DataHubLogConsumer(runContext))
@@ -142,7 +144,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             .withEnv(Optional.ofNullable(env).orElse(new HashMap<>()))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
-            .withOutputFiles(outputFiles)
+            .withOutputFiles(renderedOutputFiles.isEmpty() ? null : renderedOutputFiles)
             .run();
     }
 
