@@ -134,13 +134,8 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             .withWarningOnStdErr(true)
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
-            .withCommands(
-                ScriptService.scriptCommands(
-                    List.of("ingest"),
-                    null,
-                    List.of("-crecipe.yml")
-                )
-            )
+            .withInterpreter(Property.of(List.of("ingest")))
+            .withCommands(Property.of(List.of("-crecipe.yml")))
             .withEnv(Optional.ofNullable(env).orElse(new HashMap<>()))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
