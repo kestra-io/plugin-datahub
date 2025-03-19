@@ -4,6 +4,7 @@ import io.kestra.core.models.tasks.runners.AbstractLogConsumer;
 import io.kestra.core.models.tasks.runners.PluginUtilsService;
 import io.kestra.core.runners.RunContext;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -23,7 +24,7 @@ public class DataHubLogConsumer extends AbstractLogConsumer {
             isStdErr = false;
         }
 
-        Map<String, Object> outputs = PluginUtilsService.parseOut(line, runContext.logger(), runContext, isStdErr);
+        Map<String, Object> outputs = PluginUtilsService.parseOut(line, runContext.logger(), runContext, isStdErr, null);
         if (outputs.isEmpty()) {
             super.outputs.put(String.valueOf(counter.incrementAndGet()), line);
         } else {
@@ -37,4 +38,8 @@ public class DataHubLogConsumer extends AbstractLogConsumer {
         }
     }
 
+    @Override
+    public void accept(String line, Boolean isStdErr, Instant instant) {
+        this.accept(line, isStdErr);
+    }
 }
