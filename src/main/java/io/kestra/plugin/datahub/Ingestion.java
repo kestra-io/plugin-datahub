@@ -34,12 +34,12 @@ import java.util.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "DataHub ingestion"
+    title = "Run a DataHub ingestion."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Run DataHub ingestion",
+            title = "Run a DataHub ingestion.",
             full = true,
             code = """
                 id: datahub_cli
@@ -63,7 +63,7 @@ import java.util.*;
                 """
         ),
         @Example(
-            title = "Run DataHub ingestion using local recipe file",
+            title = "Run DataHub ingestion using a local recipe file.",
             full = true,
             code = """
                 id: datahub_cli
