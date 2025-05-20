@@ -5,6 +5,7 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
@@ -102,7 +103,7 @@ public class IngestionTest {
         URL resource = IngestionTest.class.getClassLoader().getResource("examples/recipe.yml");
 
         return storageInterface.put(
-            null,
+            TenantService.MAIN_TENANT,
             null,
             new URI("/" + IdUtils.create()),
             new FileInputStream(new File(Objects.requireNonNull(resource).toURI()))
