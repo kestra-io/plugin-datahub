@@ -1,12 +1,12 @@
 package io.kestra.plugin.datahub;
 
-import io.kestra.core.models.tasks.runners.AbstractLogConsumer;
-import io.kestra.core.models.tasks.runners.PluginUtilsService;
-import io.kestra.core.runners.RunContext;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import io.kestra.core.models.tasks.runners.AbstractLogConsumer;
+import io.kestra.core.models.tasks.runners.PluginUtilsService;
+import io.kestra.core.runners.RunContext;
 
 public class DataHubLogConsumer extends AbstractLogConsumer {
 

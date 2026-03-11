@@ -1,32 +1,34 @@
 package io.kestra.plugin.datahub;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
+
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.*;
-import io.kestra.core.models.tasks.runners.ScriptService;
 import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
 import io.kestra.plugin.scripts.runner.docker.Docker;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.Yaml;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.net.URI;
-import java.util.*;
 
 @SuperBuilder
 @ToString
@@ -96,13 +98,13 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     @PluginProperty(dynamic = true)
     private Map<String, String> env;
 
-	@Schema(
+    @Schema(
         title = "The task runner to use."
-	)
-	@Valid
-	@PluginProperty
-	@Builder.Default
-	private TaskRunner<?> taskRunner = Docker.instance();
+    )
+    @Valid
+    @PluginProperty
+    @Builder.Default
+    private TaskRunner<?> taskRunner = Docker.instance();
 
     @Schema(
         title = "The Ingestion DataHub Recipe."
@@ -111,11 +113,11 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     @PluginProperty
     private Object recipe;
 
-	private NamespaceFiles namespaceFiles;
+    private NamespaceFiles namespaceFiles;
 
-	private Object inputFiles;
+    private Object inputFiles;
 
-	private Property<List<String>> outputFiles;
+    private Property<List<String>> outputFiles;
 
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {
@@ -147,11 +149,12 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
 
         Map<String, Object> yaml;
         if (this.recipe instanceof URI from) {
-            if(!from.getScheme().equals("kestra")) {
+            if (!from.getScheme().equals("kestra")) {
                 throw new IllegalArgumentException("Invalid recipe parameter, must be a Kestra internal storage URI or Map");
             }
 
-            yaml = MAPPER.readValue(runContext.storage().getFile(from), new TypeReference<>() {});
+            yaml = MAPPER.readValue(runContext.storage().getFile(from), new TypeReference<>() {
+            });
         } else {
             yaml = (Map<String, Object>) recipe;
         }
