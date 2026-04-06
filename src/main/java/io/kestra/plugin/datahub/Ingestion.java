@@ -89,20 +89,20 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
         title = "The Ingestion DataHub docker image."
     )
     @Builder.Default
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "execution")
     private String containerImage = DEFAULT_IMAGE;
 
     @Schema(
         title = "The environments for Ingestion DataHub."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "execution")
     private Map<String, String> env;
 
     @Schema(
         title = "The task runner to use."
     )
     @Valid
-    @PluginProperty
+    @PluginProperty(group = "execution")
     @Builder.Default
     private TaskRunner<?> taskRunner = Docker.instance();
 
@@ -110,13 +110,16 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
         title = "The Ingestion DataHub Recipe."
     )
     @NotNull
-    @PluginProperty
+    @PluginProperty(group = "main")
     private Object recipe;
 
+    @PluginProperty(group = "source")
     private NamespaceFiles namespaceFiles;
 
+    @PluginProperty(group = "source")
     private Object inputFiles;
 
+    @PluginProperty(group = "destination")
     private Property<List<String>> outputFiles;
 
     @Override
