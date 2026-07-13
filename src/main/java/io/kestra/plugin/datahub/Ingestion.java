@@ -36,7 +36,8 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Run a DataHub ingestion."
+    title = "Run a DataHub ingestion",
+    description = "Runs a DataHub metadata ingestion from a recipe using the DataHub CLI inside a container."
 )
 @Plugin(
     examples = {
@@ -86,20 +87,20 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     private static final String DEFAULT_IMAGE = "acryldata/datahub-ingestion:head";
 
     @Schema(
-        title = "The Ingestion DataHub docker image."
+        title = "The Ingestion DataHub docker image"
     )
     @Builder.Default
     @PluginProperty(dynamic = true, group = "execution")
     private String containerImage = DEFAULT_IMAGE;
 
     @Schema(
-        title = "The environments for Ingestion DataHub."
+        title = "The environments for Ingestion DataHub"
     )
     @PluginProperty(dynamic = true, group = "execution")
     private Map<String, String> env;
 
     @Schema(
-        title = "The task runner to use."
+        title = "The task runner to use"
     )
     @Valid
     @PluginProperty(group = "execution")
@@ -107,7 +108,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     private TaskRunner<?> taskRunner = Docker.instance();
 
     @Schema(
-        title = "The Ingestion DataHub Recipe."
+        title = "The Ingestion DataHub Recipe"
     )
     @NotNull
     @PluginProperty(group = "main")
