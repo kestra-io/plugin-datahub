@@ -94,7 +94,8 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     private String containerImage = DEFAULT_IMAGE;
 
     @Schema(
-        title = "The environments for Ingestion DataHub"
+        title = "Environment variables",
+        description = "Environment variables to set in the ingestion container."
     )
     @PluginProperty(dynamic = true, group = "execution")
     private Map<String, String> env;
@@ -108,7 +109,9 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     private TaskRunner<?> taskRunner = Docker.instance();
 
     @Schema(
-        title = "The Ingestion DataHub Recipe"
+        title = "The DataHub ingestion recipe",
+        description = "The DataHub ingestion recipe. Provide it either inline as a map holding the full recipe YAML " +
+            "structure (`source`, `sink`, etc.), or as a `kestra://` internal-storage URI pointing to a recipe file. Required."
     )
     @NotNull
     @PluginProperty(group = "main")
