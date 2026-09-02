@@ -4,7 +4,7 @@ Run DataHub ingestion recipes from Kestra flows to push metadata into your DataH
 
 ## Authentication
 
-Authentication is configured inside the `recipe` itself — set the GMS server URL and token in the recipe's sink section (e.g. under `sink.config.server` and `sink.config.token`). You can also pass credentials via the `env` map. Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and apply connection properties globally with [plugin defaults](https://kestra.io/docs/workflow-components/plugin-defaults).
+Authentication is configured inside the `recipe` itself — set the GMS server URL and token in the recipe's sink section (e.g. under `sink.config.server` and `sink.config.token`). You can also pass credentials via the `env` map. Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and set connection properties on each task.
 
 ## Tasks
 
