@@ -1,9 +1,9 @@
 package io.kestra.plugin.datahub;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 
 import org.yaml.snakeyaml.DumperOptions;
@@ -72,10 +72,14 @@ import lombok.experimental.SuperBuilder;
                 id: datahub_cli
                 namespace: company.name
 
+                inputs:
+                  - id: recipe_file
+                    type: FILE
+
                 tasks:
                   - id: cli
                     type: io.kestra.plugin.datahub.Ingestion
-                    recipe: "{{ input('recipe_file') }}"
+                    recipe: "{{ inputs.recipe_file }}"
                 """
         )
     }
@@ -111,10 +115,11 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     @Schema(
         title = "The DataHub ingestion recipe",
         description = "The DataHub ingestion recipe. Provide it either inline as a map holding the full recipe YAML " +
-            "structure (`source`, `sink`, etc.), or as a `kestra://` internal-storage URI pointing to a recipe file. Required."
+            "structure (`source`, `sink`, etc.), or as a `kestra://` internal-storage URI pointing to a recipe file. " +
+            "The URI can be a Pebble expression that resolves to a `kestra://` URI. Required."
     )
     @NotNull
-    @PluginProperty(group = "main")
+    @PluginProperty(dynamic = true, group = "main")
     private Object recipe;
 
     @PluginProperty(group = "source")
@@ -128,14 +133,11 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
 
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {
-        String recipeFilePath = getRecipe(runContext);
+        var recipeFileName = getRecipe(runContext);
 
         if (inputFiles == null) {
             inputFiles = new HashMap<String, String>();
         }
-
-        //noinspection unchecked
-        ((Map<String, String>) inputFiles).put("recipe.yml", recipeFilePath);
         var renderedOutputFiles = runContext.render(this.outputFiles).asList(String.class);
 
         return new CommandsWrapper(runContext)
@@ -143,7 +145,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             .withWarningOnStdErr(true)
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
-            .withCommands(Property.ofValue(List.of("ingest", "-c", "recipe.yml")))
+            .withCommands(Property.ofValue(List.of("ingest", "-c", recipeFileName)))
             .withEnv(Optional.ofNullable(env).orElse(new HashMap<>()))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
@@ -151,37 +153,54 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             .run();
     }
 
-    private String getRecipe(RunContext runContext) throws Exception {
-        File tempFile = runContext.workingDir().createTempFile(".yml").toFile();
-
+    String getRecipe(RunContext runContext) throws Exception {
         Map<String, Object> yaml;
         if (this.recipe instanceof URI from) {
-            if (!from.getScheme().equals("kestra")) {
-                throw new IllegalArgumentException("Invalid recipe parameter, must be a Kestra internal storage URI or Map");
+            if (!"kestra".equals(from.getScheme())) {
+                throw new IllegalArgumentException(
+                    "Invalid recipe: expected a kestra:// URI or an inline map, got '" + from + "'"
+                );
             }
 
             yaml = MAPPER.readValue(runContext.storage().getFile(from), new TypeReference<>() {
             });
+        } else if (this.recipe instanceof String from) {
+            var rRecipe = runContext.render(from).trim();
+
+            if (!rRecipe.startsWith("kestra://")) {
+                throw new IllegalArgumentException(
+                    "Invalid recipe: expected a kestra:// URI or an inline map, got '" + rRecipe + "'"
+                );
+            }
+
+            yaml = MAPPER.readValue(runContext.storage().getFile(URI.create(rRecipe)), new TypeReference<>() {
+            });
+        } else if (this.recipe instanceof Map<?, ?> map) {
+            //noinspection unchecked
+            yaml = runContext.render((Map<String, Object>) map);
         } else {
-            yaml = (Map<String, Object>) recipe;
+            throw new IllegalArgumentException(
+                "Invalid recipe: expected a kestra:// URI or an inline map, got " + recipe.getClass().getSimpleName()
+            );
         }
 
-        String store = store(tempFile, yaml);
+        var recipeFile = runContext.workingDir().createTempFile(".yml");
+        Files.writeString(recipeFile, serializeRecipe(yaml));
 
-        return runContext.storage().putFile(tempFile).toString();
+        // Allow the container user to read the recipe when its UID differs from the worker's.
+        var posixView = Files.getFileAttributeView(recipeFile, PosixFileAttributeView.class);
+        if (posixView != null) {
+            posixView.setPermissions(PosixFilePermissions.fromString("rw-r--r--"));
+        }
+
+        return recipeFile.getFileName().toString();
     }
 
-    private String store(File file, Map<String, Object> yaml) throws IOException {
+    private String serializeRecipe(Map<String, Object> yaml) {
         DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        Yaml yamlSerializer = new Yaml(options);
 
-        try (FileWriter writer = new FileWriter(file)) {
-            yamlSerializer.dump(yaml, writer);
-            writer.flush();
-        }
-
-        return file.getAbsolutePath();
+        return new Yaml(options).dump(yaml);
     }
 
 }
