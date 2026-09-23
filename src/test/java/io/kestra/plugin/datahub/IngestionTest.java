@@ -29,7 +29,6 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.runner.docker.Docker;
 
@@ -55,11 +54,7 @@ public class IngestionTest {
             .id("unit-test")
             .type(Ingestion.class.getName())
             .taskRunner(
-                Docker.from(
-                    DockerOptions.builder()
-                        .networkMode("datahub_network")
-                        .build()
-                )
+                Docker.builder().networkMode("datahub_network").build()
             )
             .recipe(getSource())
             .build();
@@ -76,11 +71,7 @@ public class IngestionTest {
             .id("unit-test")
             .type(Ingestion.class.getName())
             .taskRunner(
-                Docker.from(
-                    DockerOptions.builder()
-                        .networkMode("datahub_network")
-                        .build()
-                )
+                Docker.builder().networkMode("datahub_network").build()
             )
             .recipe(
                 Map.of(
@@ -227,11 +218,7 @@ public class IngestionTest {
             .id(IdUtils.create())
             .type(Ingestion.class.getName())
             .taskRunner(
-                Docker.from(
-                    DockerOptions.builder()
-                        .networkMode("datahub_network")
-                        .build()
-                )
+                Docker.builder().networkMode("datahub_network").build()
             )
             .recipe(getSource().toString())
             .build();
@@ -314,6 +301,31 @@ public class IngestionTest {
         if (posixView != null) {
             assertThat(posixView.readAttributes().permissions(), is(PosixFilePermissions.fromString("rw-r--r--")));
         }
+    }
+
+    @Test
+    void runWithDefaultDockerRunner() throws Exception {
+        Ingestion task = Ingestion.builder()
+            .id(IdUtils.create())
+            .type(Ingestion.class.getName())
+            .recipe(
+                Map.of(
+                    "source", Map.of(
+                        "type", "demo-data",
+                        "config", Map.of()
+                    ),
+                    "sink", Map.of(
+                        "type", "console",
+                        "config", Map.of()
+                    )
+                )
+            )
+            .build();
+
+        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of());
+
+        ScriptOutput run = task.run(runContext);
+        assertThat(run.getExitCode(), is(0));
     }
 
     private String readRecipeFile(RunContext runContext, String fileName) throws IOException {
