@@ -58,6 +58,7 @@ public class IngestionTest {
                 Docker.from(
                     DockerOptions.builder()
                         .networkMode("datahub_network")
+                        .entryPoint(List.of(""))
                         .build()
                 )
             )
@@ -79,6 +80,7 @@ public class IngestionTest {
                 Docker.from(
                     DockerOptions.builder()
                         .networkMode("datahub_network")
+                        .entryPoint(List.of(""))
                         .build()
                 )
             )
@@ -230,6 +232,7 @@ public class IngestionTest {
                 Docker.from(
                     DockerOptions.builder()
                         .networkMode("datahub_network")
+                        .entryPoint(List.of(""))
                         .build()
                 )
             )
@@ -314,6 +317,31 @@ public class IngestionTest {
         if (posixView != null) {
             assertThat(posixView.readAttributes().permissions(), is(PosixFilePermissions.fromString("rw-r--r--")));
         }
+    }
+
+    @Test
+    void runWithDefaultDockerRunner() throws Exception {
+        Ingestion task = Ingestion.builder()
+            .id(IdUtils.create())
+            .type(Ingestion.class.getName())
+            .recipe(
+                Map.of(
+                    "source", Map.of(
+                        "type", "demo-data",
+                        "config", Map.of()
+                    ),
+                    "sink", Map.of(
+                        "type", "console",
+                        "config", Map.of()
+                    )
+                )
+            )
+            .build();
+
+        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of());
+
+        ScriptOutput run = task.run(runContext);
+        assertThat(run.getExitCode(), is(0));
     }
 
     private String readRecipeFile(RunContext runContext, String fileName) throws IOException {

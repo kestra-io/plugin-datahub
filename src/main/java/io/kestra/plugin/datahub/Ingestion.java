@@ -145,7 +145,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             .withWarningOnStdErr(true)
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
-            .withCommands(Property.ofValue(List.of("ingest", "-c", recipeFileName)))
+            .withCommands(Property.ofValue(List.of("datahub", "ingest", "-c", recipeFileName)))
             .withEnv(Optional.ofNullable(env).orElse(new HashMap<>()))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
