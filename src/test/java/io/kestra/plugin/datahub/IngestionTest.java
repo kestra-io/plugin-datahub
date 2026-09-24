@@ -58,6 +58,7 @@ public class IngestionTest {
                 Docker.from(
                     DockerOptions.builder()
                         .networkMode("datahub_network")
+                        .entryPoint(List.of(""))
                         .build()
                 )
             )
@@ -79,6 +80,7 @@ public class IngestionTest {
                 Docker.from(
                     DockerOptions.builder()
                         .networkMode("datahub_network")
+                        .entryPoint(List.of(""))
                         .build()
                 )
             )
@@ -230,6 +232,7 @@ public class IngestionTest {
                 Docker.from(
                     DockerOptions.builder()
                         .networkMode("datahub_network")
+                        .entryPoint(List.of(""))
                         .build()
                 )
             )
