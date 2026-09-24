@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.JacksonMapper;
@@ -29,6 +30,7 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.core.runner.Process;
 import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.runner.docker.Docker;
@@ -342,6 +344,72 @@ public class IngestionTest {
 
         ScriptOutput run = task.run(runContext);
         assertThat(run.getExitCode(), is(0));
+    }
+
+    @Test
+    void taskRunnerDefaultsDockerToRootUser() {
+        var resolved = Ingestion.taskRunner(Docker.instance());
+
+        assertThat(((Docker) resolved).getUser(), is("root"));
+    }
+
+    @Test
+    void taskRunnerPreservesExplicitDockerUser() {
+        var docker = Docker.from(DockerOptions.builder().user("1000").build());
+
+        var resolved = Ingestion.taskRunner(docker);
+
+        assertThat(((Docker) resolved).getUser(), is("1000"));
+    }
+
+    @Test
+    void taskRunnerDefaultsToRootAndPreservesOtherDockerOptions() {
+        var docker = Docker.from(
+            DockerOptions.builder()
+                .networkMode("datahub_network")
+                .entryPoint(List.of(""))
+                .build()
+        );
+
+        var resolved = (Docker) Ingestion.taskRunner(docker);
+
+        assertThat(resolved.getUser(), is("root"));
+        assertThat(resolved.getNetworkMode(), is("datahub_network"));
+        assertThat(resolved.getEntryPoint(), is(List.of("")));
+    }
+
+    @Test
+    void taskRunnerLeavesNonDockerRunnersUntouched() {
+        var process = Process.instance();
+
+        assertThat(Ingestion.taskRunner(process), is(process));
+    }
+
+    @Test
+    void runWithDefaultDockerRunnerAndFileSink() throws Exception {
+        Ingestion task = Ingestion.builder()
+            .id(IdUtils.create())
+            .type(Ingestion.class.getName())
+            .recipe(
+                Map.of(
+                    "source", Map.of(
+                        "type", "demo-data",
+                        "config", Map.of()
+                    ),
+                    "sink", Map.of(
+                        "type", "file",
+                        "config", Map.of("filename", "out.json")
+                    )
+                )
+            )
+            .outputFiles(Property.ofValue(List.of("out.json")))
+            .build();
+
+        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of());
+
+        ScriptOutput run = task.run(runContext);
+        assertThat(run.getExitCode(), is(0));
+        assertThat(run.getOutputFiles().containsKey("out.json"), is(true));
     }
 
     private String readRecipeFile(RunContext runContext, String fileName) throws IOException {
