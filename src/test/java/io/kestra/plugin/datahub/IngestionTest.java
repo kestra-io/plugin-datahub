@@ -29,6 +29,7 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.runner.docker.Docker;
 
@@ -54,7 +55,11 @@ public class IngestionTest {
             .id("unit-test")
             .type(Ingestion.class.getName())
             .taskRunner(
-                Docker.builder().networkMode("datahub_network").build()
+                Docker.from(
+                    DockerOptions.builder()
+                        .networkMode("datahub_network")
+                        .build()
+                )
             )
             .recipe(getSource())
             .build();
@@ -71,7 +76,11 @@ public class IngestionTest {
             .id("unit-test")
             .type(Ingestion.class.getName())
             .taskRunner(
-                Docker.builder().networkMode("datahub_network").build()
+                Docker.from(
+                    DockerOptions.builder()
+                        .networkMode("datahub_network")
+                        .build()
+                )
             )
             .recipe(
                 Map.of(
@@ -218,7 +227,11 @@ public class IngestionTest {
             .id(IdUtils.create())
             .type(Ingestion.class.getName())
             .taskRunner(
-                Docker.builder().networkMode("datahub_network").build()
+                Docker.from(
+                    DockerOptions.builder()
+                        .networkMode("datahub_network")
+                        .build()
+                )
             )
             .recipe(getSource().toString())
             .build();
