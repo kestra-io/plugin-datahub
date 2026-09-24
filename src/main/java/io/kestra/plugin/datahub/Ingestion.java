@@ -105,7 +105,10 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
     private Map<String, String> env;
 
     @Schema(
-        title = "The task runner to use"
+        title = "The task runner to use",
+        description = "On the Docker task runner, the container runs as `root` unless `taskRunner.user` is set " +
+            "explicitly, so the task can always write into its working directory (which `outputFiles` requires). " +
+            "Set `taskRunner.user` to keep the image's own default user instead."
     )
     @Valid
     @PluginProperty(group = "execution")
@@ -143,7 +146,7 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
         return new CommandsWrapper(runContext)
             .withLogConsumer(new DataHubLogConsumer(runContext))
             .withWarningOnStdErr(true)
-            .withTaskRunner(this.taskRunner)
+            .withTaskRunner(taskRunner(this.taskRunner))
             .withContainerImage(this.containerImage)
             .withCommands(Property.ofValue(List.of("datahub", "ingest", "-c", recipeFileName)))
             .withEnv(Optional.ofNullable(env).orElse(new HashMap<>()))
@@ -151,6 +154,20 @@ public class Ingestion extends Task implements RunnableTask<ScriptOutput>, Names
             .withInputFiles(inputFiles)
             .withOutputFiles(renderedOutputFiles.isEmpty() ? null : renderedOutputFiles)
             .run();
+    }
+
+    /**
+     * The {@code acryldata/datahub-ingestion} image runs as the non-root {@code datahub} user, which cannot write
+     * into the working directory mounted by the Docker task runner (owned by the worker's user). Default to
+     * {@code root} unless the user explicitly configured one, so the {@code file} sink and {@code outputFiles} work
+     * out of the box.
+     */
+    static TaskRunner<?> taskRunner(TaskRunner<?> taskRunner) {
+        if (taskRunner instanceof Docker docker && docker.getUser() == null) {
+            return docker.toBuilder().user("root").build();
+        }
+
+        return taskRunner;
     }
 
     String getRecipe(RunContext runContext) throws Exception {
